@@ -1,0 +1,495 @@
+---
+title: "Analysis of Titanic | DataSciKit.com"
+output:
+  html_document:
+    df_print: tibble
+    highlight: espresso
+    theme: readable
+    toc: yes
+  pdf_document: default
+  word_document:
+    toc: yes
+---
+
+__This work was created by Murat SAHIN on 30.01.2019. | (admin@datascikit.com)__
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+# 1 Overview of The Titanic Disaster and Dataset
+
+One of the most famous and heartbreaking events in history, the Titanic disaster has impacted people for nearly 100 years. The amount of life lost and the possible ways that the tragedy could have been potentially averted makes the Titanic an incredible event. On the night of April 14, 1912, the vessel that was deem unsinkable proved the world wrong in tragic fashion. Reports aboard the Titanic state that the wireless operators had received warnings from other vessels about large concentrations of icebergs in the area. Some accounts dictate that the wireless operator spoke of more important things to worry about, while many speculate that although aware of the icebergs, Captain Edward John Smith ignored the warnings. During the time of the Titanic Tragedy, it is believed that the vessel was charging ahead at speeds greater than what was recommended.
+
+With sixteen water-tight compartments built into the hull of the boat, designers believed that the vessel could widthstand any sort of impact. When lookout Fred Fleet signaled that there was an iceberg ahead, the Titanic changed course to avoid collision. What happened next began the Titanic disaster. Impact from the collision with the iceberg caused a glancing blow in the side of the Titanic, popping out thousands of rivets and causing her hull to buckle. The Titanic began taking on water and her water-tight compartments began flooding. Most passengers were unaware of the collision; some had felt a small quiver, while some had seen the iceberg before the impact. With as many as four of the water-tight compartments flooded, the Titanic tragedy may have still been avoided, but five compartments had been punctured and the ship began to sink rapidly.
+
+Somewhat lax lifeboat regulations of the time only required 16 lifeboats on the vessel, and the regulations were not based on capacity, but rather size of the vessel. Many are aware that the insufficient number of lifeboats was a large contributing factor to the number of fatalities in the Titanic disaster. During the panic and disarray, some lifeboats were lowered into the Atlantic at only half capacity while others floated away. As the legends all dictate, the band in fact did continue playing as the ship sank. A women and children first policy made a great number of deaths on the Titanic male. Out of the 2223 passengers aboard the Titanic, only 706 survived.
+
+The Titanic tragedy has impacted and moved individuals almost 100 years after occurring and remains one of the most famous and tragic maritime disasters in history. Discovery of the Titanic wreckage in 1985 has supplied historians with new information regarding the Titanic disaster. New Titanic artifacts are being uncovered and new items are being donated to historians to paint a better picture of what exactly happened on the night of April 14, 1912. With planned expeditions and artifacts being continuously obtained, the hope is to shed more light on the Titanic disaster and find out new pieces of information about an event that shaped history.
+
+__Source: http://www.titanicuniverse.com/titanic-disaster __
+
+## 1.1 Overview of Our Dataset
+
+The data has been split into two groups:
+
+__training set (train.csv)__ 
+
+__test set (test.csv)__
+
+The training set should be used to build your machine learning models. For the training set, we provide the outcome (also known as the “ground truth”) for each passenger. Your model will be based on “features” like passengers’ gender and class. You can also use feature engineering to create new features.
+
+The test set should be used to see how well your model performs on unseen data. For the test set, we do not provide the ground truth for each passenger. It is your job to predict these outcomes. For each passenger in the test set, use the model you trained to predict whether or not they survived the sinking of the Titanic.
+
+__The above text was taken from kaggle.__
+
+### 1.1.1 Data Dictionary
+
+
+Variable      | Description
+------------- | -------------
+Survival      | 0 = No, 1 = Yes
+Pclass        | (Ticket Class) 1 = 1st, 2 = 2nd, 3 = 3rd
+Sex           | Gender
+Age           | Age in years
+SibSp         | Of Siblings / spouses aboard the Titanic
+Parch         | Of Parents / children aboard the Titanic
+Ticket        | Ticket number
+Fare          | Passenger Fare
+Cabin         | Cabin Number
+Embarked      | C = Cherbourg, Q = Queenstown, S = Southampton
+PassenderId   | Id of Passenger
+
+# 2 Feature Engineering
+
+## 2.1 Meeting with the Dataset
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+library(readr)
+test <- read_csv("test.csv")
+train <- read_csv("train.csv")
+
+```
+
+
+```{r echo=TRUE}
+
+test$Survived = NA
+
+```
+
+
+```{r echo=TRUE}
+
+allData <- rbind(train,test)
+```
+
+
+```{r echo=TRUE}
+
+head(allData)
+
+```
+
+
+
+```{r}
+
+str(allData)
+
+```
+
+## 2.2 Variable Type Transformation 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+library(dplyr)
+
+allData <- allData %>%
+  mutate(Pclass = as.factor(Pclass),
+         Cabin = as.character(Cabin), 
+         Ticket = as.character(Ticket),
+         Survived = as.factor(Survived),
+         Embarked = as.factor(Embarked),
+         Sex = as.factor(Sex),
+         PassengerId = as.character(PassengerId))
+  
+```
+
+
+```{r}
+
+str(allData)
+
+```
+
+## 2.3 A Little Visualization 
+
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+
+```
+
+
+```{r}
+
+ggplot(allData[1:891,]) +
+  geom_bar(mapping = aes(x = Pclass, fill = Survived), position="fill")
+
+```
+
+
+```{r warning=FALSE}
+
+ggplot(allData[1:891, ])+
+  geom_freqpoly(mapping = aes(x=Age, color=Survived),bins=50)
+
+```
+
+
+```{r}
+
+ggplot(allData[1:891,]) +
+  geom_freqpoly(mapping = aes(x=Fare, color= Survived),bins=50 )
+
+```
+
+
+```{r}
+
+ggplot(allData[1:891, ]) + 
+  geom_bar(mapping = aes(x = SibSp + Parch, fill = Survived), position="fill")
+
+```
+
+## 2.4 Missing Values? 
+
+
+```{r}
+
+apply(allData, 2, function(x) sum(is.na(x)))
+
+```
+
+
+```{r}
+
+mean(allData$Age, na.rm = T)
+median(allData$Age, na.rm= T)
+
+```
+
+## 2.5 Create Title by Regular Expression
+
+
+```{r}
+
+Title = sub(".*,.([^.]*)\\..*", "\\1", allData$Name) 
+allData$Title = Title
+
+```
+
+
+```{r}
+
+head(allData$Title)
+tail(allData$Title)
+
+```
+
+### 2.5.1 Simplify Titles
+
+```{r}
+
+str(allData$Title)
+
+```
+
+
+```{r}
+
+allData$Title = as.factor(allData$Title)
+
+```
+
+
+```{r}
+
+levels(allData$Title)
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+
+library(forcats)
+
+allData= allData %>%
+  mutate(Title= fct_collapse(Title, 
+                             "Miss" = c("Mlle", "Ms"),
+                             "Mrs" = "Mme",
+                             "Ranked" = c("Major", "Dr", "Capt", "Col", "Rev"),
+                             "Royalty" = c("Lady", "Dona", "the Countess", "Don", "Sir", "Jonkheer")))
+
+
+```
+
+
+```{r}
+
+levels(allData$Title)
+
+```
+
+
+```{r}
+
+ggplot(allData[1:891, ]) + geom_bar(mapping = aes(x = Title, fill=Survived),position="fill")
+
+```
+
+## 2.6 Fill the Missing Value
+
+
+```{r}
+
+allData = allData %>% 
+  group_by(Title) %>%
+  mutate(Age = ifelse(is.na(Age), round(median(Age, na.rm = T),1), Age))
+
+
+```
+
+### 2.6.1 New Tidy Variable
+
+```{r}
+
+allData$CabinKnowledge <- ifelse(is.na(allData$Cabin), FALSE ,TRUE)
+
+```
+
+
+
+```{r}
+
+ggplot(allData[1:891, ]) +
+  geom_bar(mapping = aes(x=CabinKnowledge, fill=Survived), position="fill")
+
+```
+
+
+### 2.6.2 Continue Filling
+
+```{r}
+
+sum(is.na(allData$Fare))
+
+```
+
+
+```{r}
+
+allData %>% filter(is.na(Fare))
+
+```
+
+
+```{r}
+
+mean(allData$Fare, na.rm=T)
+
+```
+
+
+```{r}
+
+median(allData$Fare, na.rm=T)
+
+```
+
+
+```{r}
+
+newState = allData %>%
+  group_by(Pclass) %>%
+  summarise(MeanPclass = mean(Fare, na.rm = T),
+            MedianPclass = median(Fare, na.rm=T))
+
+```
+
+
+
+```{r}
+
+newState
+
+```
+
+
+```{r}
+
+allData$Fare <- ifelse(is.na(allData$Fare), 10 , allData$Fare)
+
+```
+
+
+```{r}
+
+allData %>%
+  filter(is.na(Embarked))
+
+```
+
+
+```{r}
+
+ggplot(allData[1:891,]) +
+  geom_bar(mapping= aes(Embarked, fill=Survived), position="fill")
+
+```
+
+![The image was taken from google maps.](3.png)
+
+
+```{r}
+
+ggplot(allData[1:891,]) +
+  geom_bar(mapping = aes(x = Embarked, fill = Survived))
+
+```
+
+
+```{r}
+
+allData$Embarked <- as.character(allData$Embarked)
+
+allData$Embarked <- ifelse(is.na(allData$Embarked),"S",allData$Embarked)
+
+allData$Embarked <- as.factor(allData$Embarked)
+
+```
+
+## 2.7 Finishing Touches
+
+```{r}
+
+na_count <- sapply(allData, function(x) sum(length(which(is.na(x)))))
+na_count <- data.frame(na_count)
+na_count
+
+```
+
+# 3 Creating Validation Model and Fitting
+
+## 3.1 Train and Test Data Splitting
+
+```{r}
+
+train <- allData[1:891, ]
+test <- allData[892:1309, ]
+
+```
+
+## 3.2 Validation Data Splitting
+
+
+```{r}
+
+
+valid_train <- train[1:712, ]
+valid_test <- train[712:891, ]
+
+
+```
+
+## 3.3 Creating RandomForest Validation Model
+
+ 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+library(randomForest)
+
+model <-
+  randomForest(Survived ~ Pclass + Sex + Age + SibSp+ Parch + Fare + Embarked  + Title + CabinKnowledge,
+               data = valid_train, 
+               mtry = 3,
+               ntree = 1000) 
+
+```
+
+## 3.4 Fitting RandomForest Validation Model
+
+
+```{r}
+
+predicts <- predict(model, valid_test[ ,c(3,5,6,7,8,10,12,13,14)])
+
+
+```
+
+## 3.5 Validation Accuracy
+
+
+```{r}
+
+table(predicts, valid_test$Survived)
+
+(106 +51)/180
+
+```
+
+# 4 Creating Real Model and Fitting
+
+## 4.1 Creating RandomForest Model
+
+```{r}
+
+model <-
+  randomForest(Survived ~ Pclass + Sex + Age + SibSp+ Parch + Fare + Embarked  + Title + CabinKnowledge,
+               data = train, 
+               mtry = 3,
+               ntree = 1000)
+
+
+```
+
+## 4.2 Fitting RandomForest Model
+
+
+```{r}
+predicts <- predict(model, test[ ,c(3,5,6,7,8,10,12,13,14)])
+
+```
+
+## 4.3 Preparing Model for Kaggle Competition
+
+```{r}
+
+finally <- data.frame(
+      allData[892:1309, 1],
+      predicts)
+
+colnames(finally) <- c("PassengerId", "Survived")
+
+```
+
+
+```{r}
+
+write.csv(finally, "final.csv")
+
+```
+
+# 5 Final
+
+Thank's for your patient. If you have a question or offer please tell me, i will be happy to hear it. You can send mail to __admin@datascikit.org__ or __muratpq@gmail.com __
+
+*This html page has been created by R Studio.*
+
+
